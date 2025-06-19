@@ -14,7 +14,7 @@ module.exports = async (req, res) => {
     // Use browserless.io free tier - you'll need to sign up for a free token
     // Go to https://www.browserless.io/ and get a free token
     browser = await puppeteer.connect({
-      browserWSEndpoint: 'wss://chrome.browserless.io?token=YOUR_TOKEN_HERE'
+      browserWSEndpoint: 'wss://chrome.browserless.io?token=2SWv90LWZvR7pqPccc699392f9a652a5a60788e3c9b8d5132'
     });
 
     const page = await browser.newPage();
