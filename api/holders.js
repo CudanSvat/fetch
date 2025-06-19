@@ -1,4 +1,5 @@
-const puppeteer = require('puppeteer');
+const chromium = require('chrome-aws-lambda');
+const puppeteer = require('puppeteer-core');
 
 module.exports = async (req, res) => {
   const contract = req.query.contract;
@@ -11,8 +12,10 @@ module.exports = async (req, res) => {
   let browser;
   try {
     browser = await puppeteer.launch({
-      args: ['--no-sandbox', '--disable-setuid-sandbox'],
-      headless: 'new'
+      args: chromium.args,
+      defaultViewport: chromium.defaultViewport,
+      executablePath: await chromium.executablePath,
+      headless: chromium.headless,
     });
     const page = await browser.newPage();
     await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
@@ -25,7 +28,6 @@ module.exports = async (req, res) => {
       const divs = Array.from(document.querySelectorAll('div'));
       for (let i = 0; i < divs.length; i++) {
         if (divs[i].textContent.trim() === 'Number of holders') {
-          // The number is likely in the next sibling or nearby
           let next = divs[i].parentElement?.nextElementSibling;
           if (next) {
             const num = next.textContent.replace(/[^0-9,]/g, '').replace(/,/g, '');
