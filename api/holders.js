@@ -11,6 +11,7 @@ module.exports = async (req, res) => {
   let browser;
   
   try {
+    // Try browserless.io again with your existing token
     browser = await puppeteer.connect({
       browserWSEndpoint: 'wss://chrome.browserless.io?token=2SWv90LWZvR7pqPccc699392f9a652a5a60788e3c9b8d5132'
     });
