@@ -2,7 +2,7 @@ const chromium = require('chrome-aws-lambda');
 const puppeteer = require('puppeteer-core');
 
 module.exports = async (req, res) => {
-  const contract = req.query.address; // <-- FIXED HERE
+  const contract = req.query.address;
   if (!contract) {
     res.status(400).json({ error: 'Missing contract address' });
     return;
@@ -11,19 +11,23 @@ module.exports = async (req, res) => {
   const url = `https://voyager.online/contract/${contract}`;
   let browser;
   try {
+    const isDev = !process.env.AWS_REGION;
+    const executablePath = isDev
+      ? undefined
+      : await chromium.executablePath;
+
     browser = await puppeteer.launch({
       args: chromium.args,
       defaultViewport: chromium.defaultViewport,
-      executablePath: await chromium.executablePath,
+      executablePath,
       headless: chromium.headless,
     });
+
     const page = await browser.newPage();
     await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
 
-    // Wait for the "Number of holders" label to appear
     await page.waitForSelector('div', { timeout: 15000 });
 
-    // Find the element containing "Number of holders"
     const holders = await page.evaluate(() => {
       const divs = Array.from(document.querySelectorAll('div'));
       for (let i = 0; i < divs.length; i++) {
