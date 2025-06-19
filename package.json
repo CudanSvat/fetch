@@ -1,13 +1,12 @@
 {
   "name": "voyager-holders-api",
   "version": "1.0.0",
-  "description": "Serverless API to fetch Starknet holders count using Puppeteer on Vercel",
+  "description": "Serverless API to fetch Starknet holders count",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
   },
   "dependencies": {
-    "chrome-aws-lambda": "^10.1.0",
-    "puppeteer-core": "^10.1.0"
+    "puppeteer": "^21.0.0"
   }
 }
