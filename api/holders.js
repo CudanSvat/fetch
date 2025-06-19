@@ -25,14 +25,12 @@ module.exports = async (req, res) => {
       }).on('error', reject);
     });
 
-    // Check if the response contains holders data
-    if (data && (data.holders || data.holder_count || data.number_of_holders)) {
-      const holders = data.holders || data.holder_count || data.number_of_holders;
-      res.setHeader('Cache-Control', 's-maxage=600, stale-while-revalidate');
-      res.status(200).json({ holders: parseInt(holders) });
-    } else {
-      res.status(404).json({ error: 'Holders count not found in API response' });
-    }
+    // Return the full response so we can see what fields are available
+    res.status(200).json({ 
+      message: 'Full API response',
+      data: data,
+      keys: Object.keys(data || {})
+    });
     
   } catch (error) {
     res.status(500).json({ 
