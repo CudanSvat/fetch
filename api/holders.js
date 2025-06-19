@@ -1,4 +1,4 @@
-const https = require('https');
+const puppeteer = require('puppeteer');
 
 module.exports = async (req, res) => {
   const contract = req.query.address;
@@ -7,32 +7,43 @@ module.exports = async (req, res) => {
     return;
   }
 
+  const url = `https://voyager.online/contract/${contract}`;
+  let browser;
+  
   try {
-    // Try to fetch from Voyager's API if it exists
-    const url = `https://voyager.online/api/contract/${contract}`;
-    
-    const data = await new Promise((resolve, reject) => {
-      https.get(url, (response) => {
-        let data = '';
-        response.on('data', (chunk) => data += chunk);
-        response.on('end', () => {
-          try {
-            resolve(JSON.parse(data));
-          } catch (e) {
-            reject(e);
-          }
-        });
-      }).on('error', reject);
+    // Use browserless.io free tier - you'll need to sign up for a free token
+    // Go to https://www.browserless.io/ and get a free token
+    browser = await puppeteer.connect({
+      browserWSEndpoint: 'wss://chrome.browserless.io?token=YOUR_TOKEN_HERE'
     });
 
-    // If we get here, we found an API endpoint
-    res.status(200).json(data);
-    
-  } catch (error) {
-    // If API doesn't exist, return error
-    res.status(500).json({ 
-      error: 'No API endpoint found, need to use browser approach',
-      details: error.message 
+    const page = await browser.newPage();
+    await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
+
+    const holders = await page.evaluate(() => {
+      const divs = Array.from(document.querySelectorAll('div'));
+      for (let div of divs) {
+        if (div.textContent.trim() === 'Number of holders') {
+          let next = div.parentElement?.nextElementSibling;
+          if (next) {
+            const num = next.textContent.replace(/[^0-9,]/g, '').replace(/,/g, '');
+            if (num) return num;
+          }
+        }
+      }
+      return null;
     });
+
+    if (holders) {
+      res.setHeader('Cache-Control', 's-maxage=600, stale-while-revalidate');
+      res.status(200).json({ holders: parseInt(holders) });
+    } else {
+      res.status(404).json({ error: 'Holders count not found' });
+    }
+
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  } finally {
+    if (browser) await browser.disconnect();
   }
 };
