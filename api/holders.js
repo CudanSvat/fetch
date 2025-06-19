@@ -1,5 +1,4 @@
-const chromium = require('chrome-aws-lambda');
-const puppeteer = require('puppeteer-core');
+const puppeteer = require('puppeteer');
 
 module.exports = async (req, res) => {
   const contract = req.query.address;
@@ -10,29 +9,29 @@ module.exports = async (req, res) => {
 
   const url = `https://voyager.online/contract/${contract}`;
   let browser;
+  
   try {
-    const isDev = !process.env.AWS_REGION;
-    const executablePath = isDev
-      ? undefined
-      : await chromium.executablePath;
-
     browser = await puppeteer.launch({
-      args: chromium.args,
-      defaultViewport: chromium.defaultViewport,
-      executablePath,
-      headless: chromium.headless,
+      headless: true,
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-gpu'
+      ]
     });
 
     const page = await browser.newPage();
     await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
 
-    await page.waitForSelector('div', { timeout: 15000 });
+    // Wait for content to load
+    await page.waitForTimeout(2000);
 
     const holders = await page.evaluate(() => {
       const divs = Array.from(document.querySelectorAll('div'));
-      for (let i = 0; i < divs.length; i++) {
-        if (divs[i].textContent.trim() === 'Number of holders') {
-          let next = divs[i].parentElement?.nextElementSibling;
+      for (let div of divs) {
+        if (div.textContent.trim() === 'Number of holders') {
+          let next = div.parentElement?.nextElementSibling;
           if (next) {
             const num = next.textContent.replace(/[^0-9,]/g, '').replace(/,/g, '');
             if (num) return num;
@@ -44,12 +43,13 @@ module.exports = async (req, res) => {
 
     if (holders) {
       res.setHeader('Cache-Control', 's-maxage=600, stale-while-revalidate');
-      res.status(200).json({ holders });
+      res.status(200).json({ holders: parseInt(holders) });
     } else {
       res.status(404).json({ error: 'Holders count not found' });
     }
-  } catch (e) {
-    res.status(500).json({ error: e.message });
+
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   } finally {
     if (browser) await browser.close();
   }
