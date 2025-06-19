@@ -2,7 +2,7 @@ const chromium = require('chrome-aws-lambda');
 const puppeteer = require('puppeteer-core');
 
 module.exports = async (req, res) => {
-  const contract = req.query.contract;
+  const contract = req.query.address; // <-- FIXED HERE
   if (!contract) {
     res.status(400).json({ error: 'Missing contract address' });
     return;
