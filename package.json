@@ -2,7 +2,7 @@
   "name": "voyager-holders-api",
   "version": "1.0.0",
   "main": "api/holders.js",
- "dependencies": {
+  "dependencies": {
     "puppeteer-core": "^21.3.8",
     "chrome-aws-lambda": "^10.1.0"
   }
