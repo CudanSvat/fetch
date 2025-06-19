@@ -1,4 +1,4 @@
-const puppeteer = require('puppeteer');
+const https = require('https');
 
 module.exports = async (req, res) => {
   const contract = req.query.address;
@@ -7,50 +7,32 @@ module.exports = async (req, res) => {
     return;
   }
 
-  const url = `https://voyager.online/contract/${contract}`;
-  let browser;
-  
   try {
-    browser = await puppeteer.launch({
-      headless: true,
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-gpu'
-      ]
-    });
-
-    const page = await browser.newPage();
-    await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
-
-    // Wait for content to load
-    await page.waitForTimeout(2000);
-
-    const holders = await page.evaluate(() => {
-      const divs = Array.from(document.querySelectorAll('div'));
-      for (let div of divs) {
-        if (div.textContent.trim() === 'Number of holders') {
-          let next = div.parentElement?.nextElementSibling;
-          if (next) {
-            const num = next.textContent.replace(/[^0-9,]/g, '').replace(/,/g, '');
-            if (num) return num;
+    // Try to fetch from Voyager's API if it exists
+    const url = `https://voyager.online/api/contract/${contract}`;
+    
+    const data = await new Promise((resolve, reject) => {
+      https.get(url, (response) => {
+        let data = '';
+        response.on('data', (chunk) => data += chunk);
+        response.on('end', () => {
+          try {
+            resolve(JSON.parse(data));
+          } catch (e) {
+            reject(e);
           }
-        }
-      }
-      return null;
+        });
+      }).on('error', reject);
     });
 
-    if (holders) {
-      res.setHeader('Cache-Control', 's-maxage=600, stale-while-revalidate');
-      res.status(200).json({ holders: parseInt(holders) });
-    } else {
-      res.status(404).json({ error: 'Holders count not found' });
-    }
-
+    // If we get here, we found an API endpoint
+    res.status(200).json(data);
+    
   } catch (error) {
-    res.status(500).json({ error: error.message });
-  } finally {
-    if (browser) await browser.close();
+    // If API doesn't exist, return error
+    res.status(500).json({ 
+      error: 'No API endpoint found, need to use browser approach',
+      details: error.message 
+    });
   }
 };
