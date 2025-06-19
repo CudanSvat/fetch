@@ -1,0 +1,50 @@
+const puppeteer = require('puppeteer');
+
+module.exports = async (req, res) => {
+  const contract = req.query.contract;
+  if (!contract) {
+    res.status(400).json({ error: 'Missing contract address' });
+    return;
+  }
+
+  const url = `https://voyager.online/contract/${contract}`;
+  let browser;
+  try {
+    browser = await puppeteer.launch({
+      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+      headless: 'new'
+    });
+    const page = await browser.newPage();
+    await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
+
+    // Wait for the "Number of holders" label to appear
+    await page.waitForSelector('div', { timeout: 15000 });
+
+    // Find the element containing "Number of holders"
+    const holders = await page.evaluate(() => {
+      const divs = Array.from(document.querySelectorAll('div'));
+      for (let i = 0; i < divs.length; i++) {
+        if (divs[i].textContent.trim() === 'Number of holders') {
+          // The number is likely in the next sibling or nearby
+          let next = divs[i].parentElement?.nextElementSibling;
+          if (next) {
+            const num = next.textContent.replace(/[^0-9,]/g, '').replace(/,/g, '');
+            if (num) return num;
+          }
+        }
+      }
+      return null;
+    });
+
+    if (holders) {
+      res.setHeader('Cache-Control', 's-maxage=600, stale-while-revalidate');
+      res.status(200).json({ holders });
+    } else {
+      res.status(404).json({ error: 'Holders count not found' });
+    }
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  } finally {
+    if (browser) await browser.close();
+  }
+};
